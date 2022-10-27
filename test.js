@@ -1,4 +1,4 @@
-import { generateBoard, moveIsValid } from "./moveLogic.js";
+import { generateBoard, moveIsValid } from "./boardArray";
 let badSnek1 = {
     "id": "456",
     "name": "bad snek",
