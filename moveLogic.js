@@ -3,7 +3,6 @@ import { GameState } from 'battlesnake'
 export function move(gameState) {
     // let board = generateBoard(gameState  )
     const head = gameState.you.body[0];
-    
     let moves = {
         up: {
             safe: true,
@@ -32,7 +31,7 @@ export function move(gameState) {
     };
 
     // console.log(`Food: up:${moves.up.food} down:${moves.down.food} left:${moves.left.food} right:${moves.right.food}`);
-    const safeMoves = getValidMoves(gameState.board.snakes,gameState.board.width,gameState.board.height,0)
+    const safeMoves = getValidMoves(gameState.board.snakes,gameState.board.width,gameState.board.height,4, gameState.board.hazards)
 
     if (safeMoves.length == 0) {
         // console.log(`MOVE ${gameState.turn}: No safe moves detected! Moving down`);
@@ -57,22 +56,22 @@ export function move(gameState) {
         })
         nextMove = best
     } else { //chase tail
-        Object.keys(moves).forEach(move => {
-            if (sameSpace(moves[move], gameState.you.body.at(-1))) {
-                nextMove = move
-            }
-        })
-        if (!nextMove) {
-            let neck = gameState.you.body[1]
-            if (sameSpace(neck, moves.down) && safeMoves.includes("up")) nextMove = "up"
-            if (sameSpace(neck, moves.down) && safeMoves.includes("right")) nextMove = "right"
-            if (sameSpace(neck, moves.up) && safeMoves.includes("down")) nextMove = "down"
-            if (sameSpace(neck, moves.up) && safeMoves.includes("left")) nextMove = "left"
-            if (sameSpace(neck, moves.left) && safeMoves.includes("right")) nextMove = "right"
-            if (sameSpace(neck, moves.left) && safeMoves.includes("down")) nextMove = "down"
-            if (sameSpace(neck, moves.right) && safeMoves.includes("left")) nextMove = "left"
-            if (sameSpace(neck, moves.right) && safeMoves.includes("up")) nextMove = "up"
-        }
+        // Object.keys(moves).forEach(move => {
+        //     if (sameSpace(moves[move], gameState.you.body.at(-1))) {
+        //         nextMove = move
+        //     }
+        // })
+        // if (!nextMove) {
+        //     let neck = gameState.you.body[1]
+        //     if (sameSpace(neck, moves.down) && safeMoves.includes("up")) nextMove = "up"
+        //     if (sameSpace(neck, moves.down) && safeMoves.includes("right")) nextMove = "right"
+        //     if (sameSpace(neck, moves.up) && safeMoves.includes("down")) nextMove = "down"
+        //     if (sameSpace(neck, moves.up) && safeMoves.includes("left")) nextMove = "left"
+        //     if (sameSpace(neck, moves.left) && safeMoves.includes("right")) nextMove = "right"
+        //     if (sameSpace(neck, moves.left) && safeMoves.includes("down")) nextMove = "down"
+        //     if (sameSpace(neck, moves.right) && safeMoves.includes("left")) nextMove = "left"
+        //     if (sameSpace(neck, moves.right) && safeMoves.includes("up")) nextMove = "up"
+        // }
 
 
     }
@@ -80,7 +79,7 @@ export function move(gameState) {
     //last resort - random move
     if (!nextMove) nextMove = safeMoves[Math.floor(Math.random() * safeMoves.length)];
 
-    // console.log(`MOVE ${gameState.turn}: ${nextMove}`)
+    console.log(`MOVE ${gameState.turn}: ${nextMove} SAFE MOVES ${safeMoves}`)
     return { move: nextMove , shout: nextMove};
 }
 
@@ -90,8 +89,9 @@ function sameSpace(a, b) {
 
 }
 
-function getValidMoves(snakes, w, h, lookahead){
-    let head = snakes[0].body[0]
+function getValidMoves(snakes, w, h, lookahead, hazards){
+    let me = snakes.find(snake=>snake.name=="Wilsnek")
+    let head = me.body[0]
     let moves   = {
         up: {
             safe: true,
@@ -121,25 +121,49 @@ function getValidMoves(snakes, w, h, lookahead){
 
     //avoid all snake parts TODO: ignore tail unless about to get food
     snakes.forEach((snake) => {
-        snake.body.forEach(cell => {
+        snake.body.forEach((cell,i) => {
             Object.keys(moves).forEach(move => {
-                if (sameSpace(moves[move], cell)) {
+                if (sameSpace(moves[move], cell)&&i!=snake.body.length-1) {
                     moves[move].safe = false
                 }
             })
         })
     })
 
+    if(hazards){
+        hazards.forEach(hazard=>{
+            Object.keys(moves).forEach(move=>{
+                if(sameSpace(moves[move], hazard)){
+                    moves[move].safe=false
+                }
+            })
+        })
+    }
+
+
+
     //filter out safe moves
     const safeMoves = Object.keys(moves).filter(direction => {
         if(!lookahead){
             return moves[direction].safe
         }else{
-            let projectedSnakes = [...snakes]
-            projectedSnakes[0].body.pop()
-            projectedSnakes[0].body.unshift({x: moves[direction].x, y: moves[direction].y})
-            return getValidMoves(projectedSnakes,w,h,lookahead--)
+            if(!moves[direction].safe){
+                return false
+            }else{
+                let projectedSnakes = [...snakes]
+                let newMe = projectedSnakes.find(snake=>snake.name=="Wilsnek")
+                newMe.body.pop()
+                newMe.body.unshift({x: moves[direction].x, y: moves[direction].y})
+                if(getValidMoves(projectedSnakes,w,h,lookahead-1).length>0){
+
+                    return true 
+                }else{
+                    console.log("Dead End Detected - moving "+direction+" from "+head.x+','+head.y);
+                    return false
+                }
+            }
         }
     })
+    // console.log("Lookahead: "+lookahead + " Safe Moves: "+safeMoves + " head: x-"+head.x+" y-"+head.y );
     return safeMoves
 }
